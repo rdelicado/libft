@@ -1,33 +1,80 @@
 CC = gcc
-NAME = libft++.a
-CFLAGS = -Wall -Werror -Wextra
+NAME = libft.a
+CFLAGS = -Wall -Werror -Wextra -Iinclude
 LIB = ar rcs
-FILES = ft_bzero.c ft_isalnum.c ft_isalpha.c ft_isascii.c ft_isprint.c\
-		ft_isdigit.c ft_memchr.c ft_memcpy.c ft_memset.c\
-		ft_strchr.c ft_strlcat.c ft_strlcpy.c ft_strlen.c ft_strncmp.c\
-		ft_strrchr.c ft_tolower.c ft_toupper.c ft_memcmp.c ft_strnstr.c\
-		ft_atoi.c ft_calloc.c ft_strdup.c ft_substr.c ft_memmove.c\
-		ft_strjoin.c ft_strtrim.c ft_strmapi.c ft_striteri.c ft_putchar_fd.c\
-		ft_putstr_fd.c ft_putendl_fd.c ft_putnbr_fd.c ft_itoa.c ft_split.c\
-		ft_lstnew_bonus.c ft_lstadd_front_bonus.c ft_lstsize_bonus.c\
-		ft_lstlast_bonus.c ft_lstadd_back_bonus.c ft_lstdelone_bonus.c\
-		ft_lstclear_bonus.c ft_lstiter_bonus.c ft_lstmap_bonus.c ft_printf.c\
-		print_char.c print_hexa.c print_str.c get_next_line_bonus.c get_next_line.c\
-		get_next_line_utils.c
-		
-OBJS = $(FILES:.c=.o)
 
-all: $(NAME)
+# Colors
+GREEN = \033[0;32m
+BLUE = \033[0;34m
+YELLOW = \033[1;33m
+RED = \033[0;31m
+RESET = \033[0m
+BOLD = \033[1m
+
+# Directories
+SRCDIR = src
+OBJDIR = obj
+INCDIR = include
+
+# Automatically find all .c files in src and subdirectories
+SRCS = $(shell find $(SRCDIR) -name "*.c" | sort)
+OBJS = $(SRCS:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
+TOTAL_FILES = $(words $(SRCS))
+CURRENT = 0
+
+# Create list of all object directories needed
+OBJ_DIRS = $(sort $(dir $(OBJS)))
+
+all: 
+	@clear
+	@$(MAKE) $(NAME) --no-print-directory
+
+# Create all necessary object directories
+$(OBJ_DIRS):
+	@mkdir -p $@
+
+# Universal compilation rule for any .c file in src/
+$(OBJDIR)/%.o: $(SRCDIR)/%.c | $(OBJ_DIRS)
+	@$(call compile_file,$<,$@)
+
+# Function to compile with progress bar
+define compile_file
+	$(eval CURRENT := $(shell echo $$(($(CURRENT) + 1))))
+	$(eval PERCENT := $(shell echo $$(($(CURRENT) * 100 / $(TOTAL_FILES)))))
+	$(eval FILLED := $(shell echo $$(($(CURRENT) * 20 / $(TOTAL_FILES)))))
+	$(eval BAR := $(shell printf "%*s" $(FILLED) "" | tr ' ' '='))
+	$(eval SPACES := $(shell printf "%*s" $$((20 - $(FILLED))) ""))
+	$(eval ARROW := $(shell if [ $(FILLED) -lt 20 ]; then printf ">"; fi))
+	@if [ $(CURRENT) -eq 1 ]; then printf "\033[?25l"; fi
+	@$(CC) $(CFLAGS) -c $1 -o $2 2>/dev/null
+	@printf "\r$(BLUE)Compiling$(RESET) [$(GREEN)$(BAR)$(ARROW)$(SPACES)$(RESET)] $(YELLOW)%3d%%$(RESET) %-20s" $(PERCENT) "$(notdir $1)"
+	@if [ $(CURRENT) -eq $(TOTAL_FILES) ]; then printf "\033[?25h\n"; fi
+endef
 
 $(NAME): $(OBJS)
-	$(LIB) $(NAME) $(OBJS)
-
-bonus: $(OBJS) 
-	$(LIB) $(NAME) $(OBJS) 
+	@printf "\n$(YELLOW)Creating library:$(RESET) $(BOLD)$(NAME)$(RESET)\n"
+	@$(LIB) $(NAME) $(OBJS)
+	@printf "$(GREEN)✅ Build completed successfully!$(RESET)\n"
 
 clean:
-	rm -f $(OBJS)
-fclean: clean
-	rm -f $(NAME) 
+	@printf "$(RED)🧹 Cleaning object files...$(RESET)\n"
+	@rm -rf $(OBJDIR)
+	@printf "$(GREEN)✅ Clean completed!$(RESET)\n"
+
+fclean: 
+	@clear
+	@$(MAKE) clean --no-print-directory
+	@printf "$(RED)🗑️  Removing library...$(RESET)\n"
+	@rm -f $(NAME)
+	@printf "$(GREEN)✅ Full clean completed!$(RESET)\n"
+
 re: fclean all
-.PHONY : all re fclean clean
+
+# Debug rule to show what files were found
+debug:
+	@echo "Found $(words $(SRCS)) source files:"
+	@echo "$(SRCS)" | tr ' ' '\n' | nl
+	@echo "\nObject files will be:"
+	@echo "$(OBJS)" | tr ' ' '\n' | nl
+
+.PHONY: all re fclean clean debug
